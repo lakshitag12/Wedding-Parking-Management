@@ -59,20 +59,15 @@ function renderSidebar() {
     // Dynamically update role label in footer if available
     try {
         import("./app.js").then(mod => {
-            if (!mod || !mod.supabase) return;
+            if (!mod || !mod.supabase || !mod.getStaffProfile) return;
             mod.supabase.auth.getSession().then(({ data }) => {
                 const session = data && data.session;
                 if (!session) return;
-                mod.supabase
-                    .from("profiles")
-                    .select("role")
-                    .eq("id", session.user.id)
-                    .single()
-                    .then(({ data: profile }) => {
+                mod.getStaffProfile(session.user.id)
+                    .then(({ profile }) => {
                         const footerRole = document.getElementById("sidebar-role-label");
                         if (footerRole && profile) {
                             if (profile.role === "admin") footerRole.textContent = "Administrator Panel";
-                            else if (profile.role === "manager") footerRole.textContent = "Manager Panel";
                             else footerRole.textContent = "Attendant Panel";
                         }
                     }).catch(() => {});

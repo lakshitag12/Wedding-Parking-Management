@@ -435,7 +435,7 @@
                         if (rpcErr) throw rpcErr;
                         assignedSlot = rpcData && rpcData[0] ? rpcData[0].assigned_slot_number : 'allocated';
                     } catch (dbErr) {
-                        statusEl.textContent = '❌ Entry failed: ' + (apiError.message || dbErr.message);
+                        statusEl.textContent = '❌ Entry failed: ' + (dbErr.message || apiError.message);
                         statusEl.style.color = '#dc2626';
                         submitBtn.disabled = false;
                         return;
@@ -477,7 +477,7 @@
                         if (rpcErr) throw rpcErr;
                         freedSlot = rpcData && rpcData[0] ? rpcData[0].freed_slot_number : 'released';
                     } catch (dbErr) {
-                        statusEl.textContent = '❌ Exit failed: ' + (apiError.message || dbErr.message);
+                        statusEl.textContent = '❌ Exit failed: ' + (dbErr.message || apiError.message);
                         statusEl.style.color = '#dc2626';
                         exitBtn.disabled = false;
                         return;

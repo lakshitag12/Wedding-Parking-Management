@@ -40,7 +40,7 @@
        </div>
    </div>
    <script type="module">
-       import { supabase } from './app.js';
+       import { getStaffProfile, supabase } from './app.js';
        const status = document.getElementById('status');
        const loginForm = document.getElementById('login-form');
        const loginBtn = document.getElementById('login-btn');
@@ -65,13 +65,9 @@
                return;
            }
            // Check staff profile exists
-           const { data: profile, error: profileError } = await supabase
-               .from('profiles')
-               .select('full_name, role')
-               .eq('id', data.user.id)
-               .single();
-           if (profileError || !profile) {
-               status.textContent = 'Could not load staff profile. Contact the administrator.';
+           const { profile, error: profileError } = await getStaffProfile(data.user.id);
+           if (profileError || !profile || !['admin', 'manager', 'attendant'].includes(profile.role)) {
+               status.textContent = 'This account is not enabled for staff access. Contact the administrator.';
                status.style.color = '#dc2626';
                await supabase.auth.signOut();
                loginBtn.disabled = false;

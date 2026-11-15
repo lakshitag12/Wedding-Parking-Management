@@ -100,18 +100,14 @@
     </main>
 
     <script type="module">
-        import { supabase } from './app.js';
+        import { getStaffProfile, supabase } from './app.js';
 
         // Auth guard
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) { window.location.href = 'index.html'; }
 
         // Welcome message
-        const { data: profile } = await supabase
-            .from('profiles')
-            .select('full_name, role')
-            .eq('id', session.user.id)
-            .single();
+        const { profile } = await getStaffProfile(session.user.id);
 
         if (profile) {
             document.getElementById('welcome-msg').textContent =

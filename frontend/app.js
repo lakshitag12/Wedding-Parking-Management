@@ -1,12 +1,21 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const SUPABASE_URL = 'https://szjprsarixeeqkcqfush.supabase.co';
-const SUPABASE_PUBLISHABLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6anByc2FyaXhlZXFrY3FmdXNoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1MTE0OTAsImV4cCI6MjEwODA4NzQ5MH0.9r4w68olenhGCdfMdQ86CFxvYnoYzMQye-aij1Q2Pco';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_YRNNGcAdvStAWsv7RvnaeQ_JUjpNqXM';
 
 export const supabase = createClient(
     SUPABASE_URL,
     SUPABASE_PUBLISHABLE_KEY
 );
+
+export async function getStaffProfile(userId) {
+    const { data, error } = await supabase
+        .from('profiles')
+        .select('id, auth_uid, full_name, role')
+        .or(`id.eq.${userId},auth_uid.eq.${userId}`)
+        .maybeSingle();
+    return { profile: data, error };
+}
 
 export async function requireRole(allowedRoles) {
     const { data: { session } } = await supabase.auth.getSession();
@@ -15,11 +24,7 @@ export async function requireRole(allowedRoles) {
         return null;
     }
 
-    const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('full_name, role')
-        .eq('id', session.user.id)
-        .single();
+    const { profile, error } = await getStaffProfile(session.user.id);
 
     if (error || !profile) {
         console.error('Could not load staff profile:', error);

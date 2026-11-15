@@ -20,8 +20,6 @@ SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_PUBLISHABLE_KEY = os.getenv("SUPABASE_PUBLISHABLE_KEY")
 SUPABASE_SECRET_KEY = os.getenv("SUPABASE_SECRET_KEY")
 
-print("Supabase URL loaded:", repr(SUPABASE_URL))
-
 if not all([
     SUPABASE_URL,
     SUPABASE_PUBLISHABLE_KEY,
@@ -54,7 +52,8 @@ def response_error(message, status_code=400):
 
 
 def get_staff():
-    """Validate the Supabase login token and staff profile."""
+    """Validate the Supabase login token and staff profile.
+    """
     header = request.headers.get("Authorization", "")
 
     if not header.startswith("Bearer "):
@@ -75,17 +74,21 @@ def get_staff():
 
         profile_result = (
             db.table("profiles")
-            .select("id, full_name, role")
-            .eq("id", str(user.id))
-            .single()
+            .select("id, auth_uid, full_name, role")
+            .or_(f"id.eq.{user.id},auth_uid.eq.{user.id}")
+            .maybe_single()
             .execute()
         )
 
-        profile = profile_result.data
+        profile = profile_result.data if profile_result is not None else None
 
         if not profile:
             return None, None, response_error(
                 "Staff profile not found.", 403
+            )
+        if profile.get("role") not in {"admin", "manager", "attendant"}:
+            return None, None, response_error(
+                "This account is not enabled for staff access.", 403
             )
 
         return user, profile, None
@@ -109,9 +112,9 @@ def require_staff():
 
 
 def run_query(query):
-    """Execute a Supabase query and return its data."""
+    """Execute a Supabase query and return its data, including empty maybe_single results."""
     result = query.execute()
-    return result.data
+    return result.data if result is not None else None
 
 
 # -------------------- FRONTEND STATIC ROUTES --------------------
@@ -180,15 +183,12 @@ def get_events():
         return error
 
     try:
-        # Automatic daily status synchronization based on current date
-        today = datetime.date.today().isoformat()
+        # Synchronize event dates using the database timezone.
         try:
-            # Mark past events completed
-            db.table("wedding_events").update({"status": "completed"}).lt("event_date", today).neq("status", "completed").execute()
-            # Auto-activate today's planned events
-            db.table("wedding_events").update({"status": "active"}).eq("event_date", today).eq("status", "planned").execute()
+            db.rpc("refresh_wedding_event_statuses").execute()
         except Exception as sync_exc:
             print("Daily event status sync notice:", sync_exc)
+        today = datetime.date.today().isoformat()
 
         events = run_query(
             db.table("wedding_events")
@@ -365,7 +365,7 @@ def get_slots():
 
 @app.post("/api/entry")
 def register_entry():
-    _, _, error = require_staff()
+    _, profile, error = require_staff()
 
     if error:
         return error
@@ -459,7 +459,8 @@ def register_entry():
                 "register_vehicle_entry",
                 {
                     "p_event_id": event_id,
-                    "p_vehicle_id": vehicle_id
+                    "p_vehicle_id": vehicle_id,
+                    "p_recorded_by": profile["id"]
                 }
             )
         )
@@ -482,7 +483,7 @@ def register_entry():
 
 @app.post("/api/exit")
 def register_exit():
-    _, _, error = require_staff()
+    _, profile, error = require_staff()
 
     if error:
         return error
@@ -503,7 +504,8 @@ def register_exit():
             db.rpc(
                 "register_vehicle_exit",
                 {
-                    "p_registration_number": registration
+                    "p_registration_number": registration,
+                    "p_recorded_by": profile["id"]
                 }
             )
         )
@@ -557,4 +559,4 @@ def get_history():
 # -------------------- START SERVER --------------------
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=5000, debug=True)
+    app.run(host=os.getenv("FLASK_HOST", "127.0.0.1"), port=int(os.getenv("PORT", "5000")), debug=os.getenv("FLASK_DEBUG") == "1")
