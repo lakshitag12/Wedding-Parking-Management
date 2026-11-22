@@ -1,3 +1,7 @@
+Off Campus Code:6E6Y5D
+
+
+
 # Smart Wedding Parking
 
 ## Supabase configuration
